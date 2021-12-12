@@ -23,9 +23,7 @@ optional_dependencies = {
 optional_dependencies['ALL'] = sorted(set(chain.from_iterable(optional_dependencies.values())))
 optional_dependencies['homeassistant'] = ['homeassistant']  # This should be installed with --no-deps
 
-requirements = [
-    'nest-client@ git+git://github.com/dskrypa/nest-client',
-]
+requirements = ['nest-client@ git+git://github.com/dskrypa/nest-client']
 
 
 setup(
