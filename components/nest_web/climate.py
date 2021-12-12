@@ -19,8 +19,8 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from nest.exceptions import NestException
-from nest.entities import Structure, ThermostatDevice
+from nest_client.exceptions import NestException
+from nest_client.entities import Structure, ThermostatDevice
 
 from .constants import DOMAIN, DATA_NEST, SIGNAL_NEST_UPDATE, ACTION_NEST_TO_HASS, POLL_INTERVAL
 from .constants import NEST_MODE_HEAT_COOL, MODE_HASS_TO_NEST, MODE_NEST_TO_HASS, TEMP_UNIT_MAP

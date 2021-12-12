@@ -9,7 +9,7 @@ from homeassistant.const import CONF_FILENAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
-from nest.client import NestWebClient
+from nest_client.client import NestWebClient
 
 from .constants import DOMAIN, DATA_NEST_CONFIG, NEST_CONFIG_FILE, DATA_NEST
 from .device import NestWebDevice

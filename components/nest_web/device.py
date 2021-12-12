@@ -8,9 +8,9 @@ from typing import Iterator
 from homeassistant.const import CONF_STRUCTURE
 from homeassistant.core import HomeAssistant
 
-from nest.client import NestWebClient
-from nest.exceptions import NestException
-from nest.entities import Structure, ThermostatDevice, NestDevice
+from nest_client.client import NestWebClient
+from nest_client.exceptions import NestException
+from nest_client.entities import Structure, ThermostatDevice, NestDevice
 
 __all__ = ['NestWebDevice']
 log = logging.getLogger(__name__)

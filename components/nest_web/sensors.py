@@ -13,7 +13,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from nest.entities import Structure, ThermostatDevice
+from nest_client.entities import Structure, ThermostatDevice
 
 from .constants import DOMAIN, POLL_INTERVAL, SIGNAL_NEST_UPDATE, TEMP_UNIT_MAP, DATA_NEST
 from .device import NestWebDevice
