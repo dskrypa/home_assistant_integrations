@@ -4,7 +4,8 @@
 
 import logging
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
+from homeassistant.const import CONF_FILENAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
@@ -23,17 +24,16 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     if DOMAIN not in config:
         return True
 
-    # conf = config[DOMAIN]
-    # filename = config.get(CONF_FILENAME, NEST_CONFIG_FILE)
-    # access_token_cache_file = hass.config.path(filename)
-    # hass.async_create_task(
-    #     hass.config_entries.flow.async_init(
-    #         DOMAIN, context={'source': SOURCE_IMPORT}, data={'nest_conf_path': access_token_cache_file}
-    #     )
-    # )
+    conf = config[DOMAIN]
+    filename = config.get(CONF_FILENAME, NEST_CONFIG_FILE)
+    config_path = hass.config.path(filename)
+    hass.async_create_task(
+        hass.config_entries.flow.async_init(
+            DOMAIN, context={'source': SOURCE_IMPORT}, data={'nest_conf_path': config_path}
+        )
+    )
 
-    # Store config to be used during entry setup
-    # hass.data[DATA_NEST_CONFIG] = conf
+    hass.data[DATA_NEST_CONFIG] = conf
     return True
 
 
