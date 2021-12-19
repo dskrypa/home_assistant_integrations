@@ -23,6 +23,7 @@ log = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
     """Set up a Nest sensor based on a config entry."""
+    log.info(f'Beginning {DOMAIN} async_setup_entry for sensor')
     nest = hass.data[DATA_NEST]  # type: NestWebDevice
 
     def get_sensors():
@@ -35,6 +36,7 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddE
         return all_sensors
 
     async_add_entities(await hass.async_add_executor_job(get_sensors), True)
+    log.info(f'Completed {DOMAIN} async_setup_entry for sensor')
 
 
 class NestSensorDevice(Entity):
@@ -67,15 +69,15 @@ class NestSensorDevice(Entity):
         name = self.device.description
         if self.device.is_thermostat:
             model = 'Thermostat'
-        elif self.device.is_camera:
-            model = 'Camera'
-        elif self.device.is_smoke_co_alarm:
-            model = 'Nest Protect'
+        # elif self.device.is_camera:
+        #     model = 'Camera'
+        # elif self.device.is_smoke_co_alarm:
+        #     model = 'Nest Protect'
         else:
             model = None
 
         return DeviceInfo(
-            identifiers={(DOMAIN, self.device.serial)}, manufacturer='Nest Labs', model=model, name=name  # noqa
+            identifiers={(DOMAIN, self.device.serial)}, manufacturer='_Nest_', model=model, name=name  # noqa
         )
 
     @cached_property

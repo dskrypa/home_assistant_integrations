@@ -12,6 +12,8 @@ from nest_client.client import NestWebClient
 from nest_client.exceptions import NestException
 from nest_client.entities import Structure, ThermostatDevice, NestDevice
 
+from .constants import DOMAIN
+
 __all__ = ['NestWebDevice']
 log = logging.getLogger(__name__)
 
@@ -24,6 +26,7 @@ class NestWebDevice:
         self.local_structure = conf.get(CONF_STRUCTURE)
 
     def initialize(self):
+        log.info(f'[{DOMAIN}] Beginning NestWebDevice.initialize')
         try:
             # Do not optimize the next statement - it is here to initialize the Nest API connection.
             structure_names = {s.name for s in self.nest.structures}

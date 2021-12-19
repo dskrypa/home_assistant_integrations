@@ -35,11 +35,13 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     """Set up the Nest climate device based on a config entry."""
+    log.info(f'Beginning {DOMAIN} async_setup_entry for climate')
     temp_unit = hass.config.units.temperature_unit
     # hass.data[DATA_NEST] = NestWebDevice(hass, conf, nest)
     thermostats = await hass.async_add_executor_job(hass.data[DATA_NEST].thermostats)
     all_devices = [NestThermostat(structure, device, temp_unit) for structure, device in thermostats]
     async_add_entities(all_devices, True)
+    log.info(f'Completed {DOMAIN} async_setup_entry for climate')
 
 
 class NestThermostat(ClimateEntity):
@@ -101,7 +103,7 @@ class NestThermostat(ClimateEntity):
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
             identifiers={(DOMAIN, self.device.device_id)},
-            manufacturer='Nest Labs',
+            manufacturer='_Nest_',
             model='Thermostat',
             name=self.device.description,
             sw_version=self.device.software_version,
@@ -219,6 +221,7 @@ class NestThermostat(ClimateEntity):
     # endregion
 
     def update(self):
+        log.info(f'[{DOMAIN}] Refreshing {self.device}')
         self.device.refresh()
         device, shared = self.device, self.device.shared
         self._location = device.where

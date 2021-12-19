@@ -22,6 +22,7 @@ MODULES = ['climate', 'sensor']
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up Nest components with dispatch between old/new flows."""
+    log.info(f'Beginning {DOMAIN} async_setup')
     hass.data[DOMAIN] = {}
     conf = config.get(DOMAIN, {})
     # if DOMAIN not in config:
@@ -36,14 +37,15 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # )
 
     hass.data[DATA_NEST_CONFIG] = conf
+    log.info(f'Completed {DOMAIN} async_setup')
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Nest from legacy config entry."""
-    client = NestWebClient()
+    log.info(f'Beginning {DOMAIN} async_setup_entry')
 
-    log.debug('proceeding with setup')
+    client = NestWebClient()
     conf = hass.data.get(DATA_NEST_CONFIG, {})
     hass.data[DATA_NEST] = NestWebDevice(hass, conf, client)
     if not await hass.async_add_executor_job(hass.data[DATA_NEST].initialize):
@@ -71,5 +73,5 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     #     nest.update_event.set()
 
     # entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, shut_down))
-    log.debug('async_setup_entry is done')
+    log.info(f'Completed {DOMAIN} async_setup_entry')
     return True
