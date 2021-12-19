@@ -3,9 +3,9 @@ from homeassistant.components.climate.const import CURRENT_HVAC_COOL, CURRENT_HV
 from homeassistant.components.climate.const import CURRENT_HVAC_FAN, PRESET_AWAY, PRESET_ECO, PRESET_NONE
 from homeassistant.const import TEMP_FAHRENHEIT, TEMP_CELSIUS
 
-DOMAIN = 'nest'
-DATA_NEST = 'nest'
-DATA_NEST_CONFIG = 'nest_config'
+DOMAIN = 'nest_web'
+DATA_NEST = 'nest_web'
+DATA_NEST_CONFIG = 'nest_web_config'
 CONF_PROJECT_ID = 'project_id'
 CONF_SUBSCRIBER_ID = 'subscriber_id'
 SIGNAL_NEST_UPDATE = 'nest_update'
