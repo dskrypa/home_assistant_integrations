@@ -5,7 +5,7 @@
 import logging
 
 from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
-from homeassistant.const import CONF_FILENAME
+# from homeassistant.const import CONF_FILENAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
@@ -15,23 +15,25 @@ from .constants import DOMAIN, DATA_NEST_CONFIG, NEST_CONFIG_FILE, DATA_NEST
 from .device import NestWebDevice
 
 log = logging.getLogger(__name__)
-MODULES = ['climate', 'sensors']
+MODULES = ['climate', 'sensor']
+
+# TODO: ??? https://developers.home-assistant.io/docs/config_entries_config_flow_handler/
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up Nest components with dispatch between old/new flows."""
     hass.data[DOMAIN] = {}
-    if DOMAIN not in config:
-        return True
-
-    conf = config[DOMAIN]
-    filename = config.get(CONF_FILENAME, NEST_CONFIG_FILE)
-    config_path = hass.config.path(filename)
-    hass.async_create_task(
-        hass.config_entries.flow.async_init(
-            DOMAIN, context={'source': SOURCE_IMPORT}, data={'nest_conf_path': config_path}
-        )
-    )
+    conf = config.get(DOMAIN, {})
+    # if DOMAIN not in config:
+    #     return True
+    # conf = config[DOMAIN]
+    # filename = config.get(CONF_FILENAME, NEST_CONFIG_FILE)
+    # config_path = hass.config.path(filename)
+    # hass.async_create_task(
+    #     hass.config_entries.flow.async_init(
+    #         DOMAIN, context={'source': SOURCE_IMPORT}, data={'nest_conf_path': config_path}
+    #     )
+    # )
 
     hass.data[DATA_NEST_CONFIG] = conf
     return True
@@ -69,5 +71,5 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     #     nest.update_event.set()
 
     # entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, shut_down))
-    log.debug('async_setup_nest is done')
+    log.debug('async_setup_entry is done')
     return True

@@ -28,7 +28,9 @@ from .constants import NEST_MODE_HEAT_COOL, MODE_HASS_TO_NEST, MODE_NEST_TO_HASS
 __all__ = []
 log = logging.getLogger(__name__)
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({vol.Optional(CONF_SCAN_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=1))})
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
+    vol.Optional(CONF_SCAN_INTERVAL, default=POLL_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=1))
+})
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
