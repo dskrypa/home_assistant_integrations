@@ -1,5 +1,7 @@
 """
+Nest Web thermostat sensors
 
+:author: Doug Skrypa
 """
 
 import logging
@@ -66,18 +68,21 @@ class NestSensorDevice(Entity):
     @property
     def device_info(self) -> DeviceInfo:
         """Return information about the device."""
-        name = self.device.description
-        if self.device.is_thermostat:
-            model = 'Thermostat'
+        # name = f'{self.device.description} - Sensors'
+        # if self.device.is_thermostat:
+        #     model = 'Thermostat'
         # elif self.device.is_camera:
         #     model = 'Camera'
         # elif self.device.is_smoke_co_alarm:
         #     model = 'Nest Protect'
-        else:
-            model = None
-
+        # else:
+        #     model = None
         return DeviceInfo(
-            identifiers={(DOMAIN, self.device.serial)}, manufacturer='_Nest_', model=model, name=name  # noqa
+            identifiers={(DOMAIN, self.device.serial)},
+            manufacturer='Nest',
+            model='Thermostat',
+            name=self.device.description,
+            sw_version=self.device.software_version,
         )
 
     @cached_property

@@ -1,11 +1,12 @@
 """
+Initialize the Nest Web integration
 
+:author: Doug Skrypa
 """
 
 import logging
 
-from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
-# from homeassistant.const import CONF_FILENAME
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
@@ -15,28 +16,13 @@ from .constants import DOMAIN, DATA_NEST_CONFIG, NEST_CONFIG_FILE, DATA_NEST
 from .device import NestWebDevice
 
 log = logging.getLogger(__name__)
-MODULES = ['climate', 'sensor']
-
-# TODO: ??? https://developers.home-assistant.io/docs/config_entries_config_flow_handler/
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up Nest components with dispatch between old/new flows."""
     log.info(f'Beginning {DOMAIN} async_setup')
     hass.data[DOMAIN] = {}
-    conf = config.get(DOMAIN, {})
-    # if DOMAIN not in config:
-    #     return True
-    # conf = config[DOMAIN]
-    # filename = config.get(CONF_FILENAME, NEST_CONFIG_FILE)
-    # config_path = hass.config.path(filename)
-    # hass.async_create_task(
-    #     hass.config_entries.flow.async_init(
-    #         DOMAIN, context={'source': SOURCE_IMPORT}, data={'nest_conf_path': config_path}
-    #     )
-    # )
-
-    hass.data[DATA_NEST_CONFIG] = conf
+    hass.data[DATA_NEST_CONFIG] = config.get(DOMAIN, {})
     log.info(f'Completed {DOMAIN} async_setup')
     return True
 
@@ -51,26 +37,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not await hass.async_add_executor_job(hass.data[DATA_NEST].initialize):
         return False
 
-    for module in MODULES:
+    for module in ('climate', 'sensor'):
         hass.async_create_task(hass.config_entries.async_forward_entry_setup(entry, module))
-
-    # def validate_structures(target_structures):
-    #     all_structures = {structure.name for structure in nest.structures}
-    #     for target in target_structures:
-    #         if target not in all_structures:
-    #             log.info(f'Invalid structure={target}')
-
-    # @callback
-    # def start_up(event):
-    #     """Start Nest update event listener."""
-    #     threading.Thread(name='Nest update listener', target=nest_update_event_broker, args=(hass, nest)).start()
-    #
-    # hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, start_up)
-    #
-    # @callback
-    # def shut_down(event):
-    #     """Stop Nest update event listener."""
-    #     nest.update_event.set()
 
     # entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, shut_down))
     log.info(f'Completed {DOMAIN} async_setup_entry')

@@ -1,5 +1,7 @@
 """
+Nest Web thermostat control
 
+:author: Doug Skrypa
 """
 
 import logging
@@ -25,7 +27,7 @@ from nest_client.entities import Structure, ThermostatDevice
 from .constants import DOMAIN, DATA_NEST, SIGNAL_NEST_UPDATE, ACTION_NEST_TO_HASS, POLL_INTERVAL
 from .constants import NEST_MODE_HEAT_COOL, MODE_HASS_TO_NEST, MODE_NEST_TO_HASS, TEMP_UNIT_MAP
 
-__all__ = []
+__all__ = ['NestThermostat', 'async_setup_entry']
 log = logging.getLogger(__name__)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
@@ -102,8 +104,8 @@ class NestThermostat(ClimateEntity):
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
-            identifiers={(DOMAIN, self.device.device_id)},
-            manufacturer='_Nest_',
+            identifiers={(DOMAIN, self.device.serial)},
+            manufacturer='Nest',
             model='Thermostat',
             name=self.device.description,
             sw_version=self.device.software_version,
