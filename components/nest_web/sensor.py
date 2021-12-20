@@ -9,7 +9,7 @@ from functools import cached_property
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.components.binary_sensor import BinarySensorEntity
-from homeassistant.const import PERCENTAGE, DEVICE_CLASS_HUMIDITY, DEVICE_CLASS_TEMPERATURE
+from homeassistant.const import PERCENTAGE, DEVICE_CLASS_HUMIDITY, DEVICE_CLASS_TEMPERATURE, TEMP_CELSIUS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo, Entity
@@ -32,7 +32,8 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddE
         all_sensors = [
             cls(structure, device, var)
             for structure, device in nest.thermostats()
-            for cls in (NestBasicSensor, NestTempSensor, NestBinarySensor)
+            # for cls in (NestBasicSensor, NestTempSensor, NestBinarySensor)
+            for cls in (NestBasicSensor, NestBinarySensor)
             for var in cls._types
         ]
         return all_sensors
@@ -68,7 +69,6 @@ class NestSensorDevice(Entity):
     @property
     def device_info(self) -> DeviceInfo:
         """Return information about the device."""
-        # name = f'{self.device.description} - Sensors'
         # if self.device.is_thermostat:
         #     model = 'Thermostat'
         # elif self.device.is_camera:
@@ -122,26 +122,28 @@ class NestBasicSensor(NestSensorDevice, SensorEntity):
         self._state = getattr(obj, self.variable)
 
 
-class NestTempSensor(NestSensorDevice, SensorEntity):
-    _types = {'temperature': DEVICE_CLASS_TEMPERATURE, 'target': DEVICE_CLASS_TEMPERATURE}
-
-    def __init__(self, structure: Structure, device: ThermostatDevice, variable: str):
-        super().__init__(structure, device, variable)
-        self._unit = TEMP_UNIT_MAP[self.device.client.config.temp_unit]
-
-    @property
-    def native_value(self):
-        return self._state
-
-    def update(self):
-        self.device.refresh()
-        shared = self.device.shared
-        if self.variable == 'target' and shared.target_temperature_type == 'range':
-            low, high = shared.target_temp_range
-            self._state = f'{low:.1f}-{high:.1f}'
-        else:
-            temp = shared.target_temperature if self.variable == 'target' else shared.current_temperature
-            self._state = f'{temp:.1f}'
+# class NestTempSensor(NestSensorDevice, SensorEntity):
+#     _types = {'temperature': DEVICE_CLASS_TEMPERATURE, 'target_temperature': DEVICE_CLASS_TEMPERATURE}
+#
+#     def __init__(self, structure: Structure, device: ThermostatDevice, variable: str):
+#         super().__init__(structure, device, variable)
+#         # self._unit = TEMP_UNIT_MAP[self.device.client.config.temp_unit]
+#         self._unit = TEMP_CELSIUS
+#
+#     @property
+#     def native_value(self):
+#         return self._state
+#
+#     def update(self):
+#         self.device.refresh()
+#         shared = self.device.shared
+#         if self.variable == 'target_temperature' and shared.target_temperature_type == 'range':
+#             # low, high = shared.target_temp_range
+#             low, high = shared._target_temperature_low, shared._target_temperature_high
+#             self._state = f'{low:.1f}-{high:.1f}'
+#         else:
+#             temp = shared._target_temperature if self.variable == 'target_temperature' else shared._current_temperature
+#             self._state = f'{temp:.1f}'
 
 
 class NestBinarySensor(NestSensorDevice, BinarySensorEntity):
