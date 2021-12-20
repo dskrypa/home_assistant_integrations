@@ -1,11 +1,11 @@
 {
   "domain": "nest_web",
   "name": "Nest Web Client",
-  "config_flow": false,
+  "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/dskrypa/home_assistant_integrations",
   "requirements": ["git+git://github.com/dskrypa/nest-client#nest-client==2021.12.12-11"],
   "codeowners": [],
   "iot_class": "cloud_polling",
-  "version": "2021.12.19-2"
+  "version": "2021.12.20-1"
 }
