@@ -31,7 +31,7 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddE
     def get_sensors():
         all_sensors = [
             cls(structure, device, (await device.shared), var)
-            for structure, device in nest.thermostats()
+            for structure, device in (await nest.thermostats())
             # for cls in (NestBasicSensor, NestTempSensor, NestBinarySensor)
             for cls in (NestBasicSensor, NestBinarySensor)
             for var in cls._types

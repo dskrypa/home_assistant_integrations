@@ -34,8 +34,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     client = NestWebClient()
     conf = hass.data.get(DATA_NEST_CONFIG, {})
     hass.data[DATA_NEST] = NestWebDevice(hass, conf, client)
-    if not await hass.async_add_executor_job(hass.data[DATA_NEST].initialize):
-        return False
+
+    await hass.data[DATA_NEST].initialize()
+    # if not await hass.async_add_executor_job(hass.data[DATA_NEST].initialize):
+    #     return False
 
     for module in ('climate', 'sensor'):
         hass.async_create_task(hass.config_entries.async_forward_entry_setup(entry, module))
