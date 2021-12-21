@@ -27,18 +27,14 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddE
     """Set up a Nest sensor based on a config entry."""
     log.info(f'Beginning {DOMAIN} async_setup_entry for sensor')
     nest = hass.data[DATA_NEST]  # type: NestWebDevice
-
-    def get_sensors():
-        all_sensors = [
-            cls(structure, device, (await device.shared), var)
-            for structure, device in (await nest.thermostats())
-            # for cls in (NestBasicSensor, NestTempSensor, NestBinarySensor)
-            for cls in (NestBasicSensor, NestBinarySensor)
-            for var in cls._types
-        ]
-        return all_sensors
-
-    async_add_entities(await hass.async_add_executor_job(get_sensors), True)
+    all_sensors = [
+        cls(structure, device, (await device.shared), var)
+        for structure, device in (await nest.thermostats())
+        # for cls in (NestBasicSensor, NestTempSensor, NestBinarySensor)
+        for cls in (NestBasicSensor, NestBinarySensor)
+        for var in cls._types
+    ]
+    async_add_entities(all_sensors, True)
     log.info(f'Completed {DOMAIN} async_setup_entry for sensor')
 
 
