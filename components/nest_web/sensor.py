@@ -15,7 +15,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from nest_client.entities import Structure, ThermostatDevice
+from nest_client.entities import Structure, ThermostatDevice, Shared
 
 from .constants import DOMAIN, POLL_INTERVAL, SIGNAL_NEST_UPDATE, TEMP_UNIT_MAP, DATA_NEST
 from .device import NestWebDevice
@@ -30,7 +30,7 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddE
 
     def get_sensors():
         all_sensors = [
-            cls(structure, device, var)
+            cls(structure, device, (await device.shared), var)
             for structure, device in nest.thermostats()
             # for cls in (NestBasicSensor, NestTempSensor, NestBinarySensor)
             for cls in (NestBasicSensor, NestBinarySensor)
@@ -46,10 +46,11 @@ class NestSensorDevice(Entity):
     _types = {}
     device: ThermostatDevice
 
-    def __init__(self, structure: Structure, device: ThermostatDevice, variable: str):
+    def __init__(self, structure: Structure, device: ThermostatDevice, shared: Shared, variable: str):
         self.structure = structure
         self.variable = variable
         self.device = device
+        self.shared = shared
         self._name = '{} {}'.format(device.description, variable.replace('_', ' '))
         self._state = None
         self._unit = None
@@ -60,7 +61,7 @@ class NestSensorDevice(Entity):
 
     @property
     def should_poll(self) -> bool:
-        return any(obj.needs_refresh(POLL_INTERVAL) for obj in (self.structure, self.device, self.device.shared))
+        return any(obj.needs_refresh(POLL_INTERVAL) for obj in (self.structure, self.device, self.shared))
 
     @cached_property
     def unique_id(self):
@@ -93,7 +94,7 @@ class NestSensorDevice(Entity):
     def native_unit_of_measurement(self):
         return self._unit
 
-    def update(self):
+    async def async_update(self):
         """Do not use NestSensorDevice directly."""
         raise NotImplementedError
 
@@ -115,35 +116,36 @@ class NestBasicSensor(NestSensorDevice, SensorEntity):
     def native_value(self):
         return self._state
 
-    def update(self):
-        self.device.refresh()
+    async def async_update(self):
+        await self.device.refresh()
         self._unit = self._units.get(self.variable)
-        obj = self.device if self.variable == 'humidity' else self.device.shared
+        obj = self.device if self.variable == 'humidity' else self.shared
         self._state = getattr(obj, self.variable)
 
 
-# class NestTempSensor(NestSensorDevice, SensorEntity):
-#     _types = {'temperature': DEVICE_CLASS_TEMPERATURE, 'target_temperature': DEVICE_CLASS_TEMPERATURE}
-#
-#     def __init__(self, structure: Structure, device: ThermostatDevice, variable: str):
-#         super().__init__(structure, device, variable)
-#         # self._unit = TEMP_UNIT_MAP[self.device.client.config.temp_unit]
-#         self._unit = TEMP_CELSIUS
-#
-#     @property
-#     def native_value(self):
-#         return self._state
-#
-#     def update(self):
-#         self.device.refresh()
-#         shared = self.device.shared
-#         if self.variable == 'target_temperature' and shared.target_temperature_type == 'range':
-#             # low, high = shared.target_temp_range
-#             low, high = shared._target_temperature_low, shared._target_temperature_high
-#             self._state = f'{low:.1f}-{high:.1f}'
-#         else:
-#             temp = shared._target_temperature if self.variable == 'target_temperature' else shared._current_temperature
-#             self._state = f'{temp:.1f}'
+class NestTempSensor(NestSensorDevice, SensorEntity):
+    _types = {'temperature': DEVICE_CLASS_TEMPERATURE, 'target_temperature': DEVICE_CLASS_TEMPERATURE}
+
+    def __init__(self, structure: Structure, device: ThermostatDevice, shared: Shared, variable: str):
+        super().__init__(structure, device, shared, variable)
+        # self._unit = TEMP_UNIT_MAP[self.device.client.config.temp_unit]
+        self._unit = TEMP_CELSIUS
+
+    @property
+    def native_value(self):
+        return self._state
+
+    async def async_update(self):
+        await self.device.refresh()
+        shared = self.shared
+        # Using _ versions to get raw celsius values
+        if self.variable == 'target_temperature' and shared.target_temperature_type == 'range':
+            # low, high = shared.target_temp_range
+            low, high = shared._target_temp_range
+            self._state = f'{low:.1f}-{high:.1f}'
+        else:
+            temp = shared._target_temperature if self.variable == 'target_temperature' else shared._current_temperature
+            self._state = f'{temp:.1f}'
 
 
 class NestBinarySensor(NestSensorDevice, BinarySensorEntity):
@@ -172,10 +174,10 @@ class NestBinarySensor(NestSensorDevice, BinarySensorEntity):
         elif attr := self._device_var_attr_map.get(self.variable):
             return self.device, attr
         elif attr := self._shared_var_attr_map.get(self.variable):
-            return self.device.shared, attr
+            return self.shared, attr
 
-    def update(self):
-        self.device.refresh()
+    async def async_update(self):
+        await self.device.refresh()
         obj, attr = self._obj_and_attr
         value = getattr(obj, attr)
         self._state = not value if self.variable in self._negate else value

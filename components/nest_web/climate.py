@@ -22,7 +22,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from nest_client.exceptions import NestException
-from nest_client.entities import Structure, ThermostatDevice
+from nest_client.entities import Structure, ThermostatDevice, Shared
 
 from .constants import DOMAIN, DATA_NEST, SIGNAL_NEST_UPDATE, ACTION_NEST_TO_HASS, POLL_INTERVAL
 from .constants import NEST_MODE_HEAT_COOL, MODE_HASS_TO_NEST, MODE_NEST_TO_HASS, TEMP_UNIT_MAP
@@ -41,24 +41,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     temp_unit = hass.config.units.temperature_unit
     # hass.data[DATA_NEST] = NestWebDevice(hass, conf, nest)
     thermostats = await hass.async_add_executor_job(hass.data[DATA_NEST].thermostats)
-    all_devices = [NestThermostat(structure, device, temp_unit) for structure, device in thermostats]
+    all_devices = [
+        NestThermostat(structure, device, (await device.shared), temp_unit) for structure, device in thermostats
+    ]
     async_add_entities(all_devices, True)
     log.info(f'Completed {DOMAIN} async_setup_entry for climate')
 
 
 class NestThermostat(ClimateEntity):
-    def __init__(self, structure: Structure, device: ThermostatDevice, temp_unit: str):
+    def __init__(self, structure: Structure, device: ThermostatDevice, shared: Shared, temp_unit: str):
         self._unit = temp_unit
         self.structure = structure
         self.device = device
+        self.shared = shared
         self._fan_modes = [FAN_ON, FAN_AUTO]
         self._support_flags = SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
-        if self.device.shared.can_heat and self.device.shared.can_cool:
+        if shared.can_heat and shared.can_cool:
             self._operation_list = [HVAC_MODE_AUTO, HVAC_MODE_HEAT, HVAC_MODE_COOL, HVAC_MODE_OFF]
             self._support_flags |= SUPPORT_TARGET_TEMPERATURE_RANGE
-        elif self.device.shared.can_heat:
+        elif shared.can_heat:
             self._operation_list = [HVAC_MODE_HEAT, HVAC_MODE_OFF]
-        elif self.device.shared.can_cool:
+        elif shared.can_cool:
             self._operation_list = [HVAC_MODE_COOL, HVAC_MODE_OFF]
         else:
             self._operation_list = [HVAC_MODE_OFF]
@@ -82,7 +85,7 @@ class NestThermostat(ClimateEntity):
 
     @property
     def should_poll(self) -> bool:
-        return any(obj.needs_refresh(POLL_INTERVAL) for obj in (self.structure, self.device, self.device.shared))
+        return any(obj.needs_refresh(POLL_INTERVAL) for obj in (self.structure, self.device, self.shared))
 
     async def async_added_to_hass(self):
         """Register update signal handler."""
@@ -145,20 +148,20 @@ class NestThermostat(ClimateEntity):
     def target_temperature_high(self):
         return self._target_temperature[1] if self._mode == NEST_MODE_HEAT_COOL else None
 
-    def set_temperature(self, **kwargs):
+    async def async_set_temperature(self, **kwargs):
         try:
-            self._set_temp(
+            await self._set_temp(
                 kwargs.get(ATTR_TARGET_TEMP_LOW), kwargs.get(ATTR_TARGET_TEMP_HIGH), kwargs.get(ATTR_TEMPERATURE)
             )
         except NestException as e:
             log.error(f'An error occurred while setting temperature: {e}')
             self.schedule_update_ha_state(True)  # restore target temperature
 
-    def _set_temp(self, low, high, temp):
+    async def _set_temp(self, low, high, temp):
         if self._mode == NEST_MODE_HEAT_COOL and low is not None and high is not None:
-            self.device.shared.set_temp_range(low, high)
+            await self.shared.set_temp_range(low, high)
         elif temp is not None:
-            self.device.shared.set_temp(temp)
+            await self.shared.set_temp(temp)
         else:
             log.debug(f'Invalid set_temperature args for mode={self._mode} - {low=} {high=} {temp=}')
 
@@ -178,8 +181,9 @@ class NestThermostat(ClimateEntity):
     def hvac_action(self):
         return ACTION_NEST_TO_HASS[self._action]
 
-    def set_hvac_mode(self, hvac_mode: str):
-        self.device.shared.set_mode(MODE_HASS_TO_NEST[hvac_mode])
+    async def async_set_hvac_mode(self, hvac_mode: str):
+        shared = await self.device.shared
+        await shared.set_mode(MODE_HASS_TO_NEST[hvac_mode])
 
     @property
     def preset_mode(self):
@@ -189,14 +193,14 @@ class NestThermostat(ClimateEntity):
     def preset_modes(self) -> list[PRESET_NONE, PRESET_AWAY]:
         return [PRESET_NONE, PRESET_AWAY]
 
-    def set_preset_mode(self, preset_mode: str):
+    async def async_set_preset_mode(self, preset_mode: str):
         if preset_mode == self.preset_mode:
             return
 
         need_away = preset_mode == PRESET_AWAY
         is_away = self._away
         if is_away != need_away:
-            self.structure.set_away(need_away)
+            await self.structure.set_away(need_away)
 
     # endregion
 
@@ -213,19 +217,19 @@ class NestThermostat(ClimateEntity):
     def fan_modes(self):
         return self._fan_modes if self._has_fan else None
 
-    def set_fan_mode(self, fan_mode: str):
+    async def async_set_fan_mode(self, fan_mode: str):
         if self._has_fan:
             if fan_mode == FAN_ON:
-                self.device.start_fan()  # TODO: Set/Configure duration
+                await self.device.start_fan()  # TODO: Set/Configure duration
             else:
-                self.device.stop_fan()
+                await self.device.stop_fan()
 
     # endregion
 
-    def update(self):
+    async def async_update(self):
         log.info(f'[{DOMAIN}] Refreshing {self.device}')
-        self.device.refresh()
-        device, shared = self.device, self.device.shared
+        device, shared = self.device, self.shared
+        await device.refresh()
         self._location = device.where
         self._name = device.name
         self._humidity = device.humidity
