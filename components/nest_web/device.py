@@ -68,6 +68,14 @@ class NestWebDevice:
         now = datetime.now()
         return (now - self.last_refresh) >= self.refresh_interval or (now - self.last_command) >= MIN_REFRESH_INTERVAL
 
+    async def maybe_refresh(self) -> bool:
+        if not self.needs_refresh():
+            log.debug('Refresh is not currently necessary')
+            return False
+        else:
+            await self.refresh()
+            return True
+
     async def refresh(self):
         log.debug('Beginning refresh')
         async with self.refresh_lock:
@@ -83,3 +91,6 @@ class NestWebDevice:
             await self.nest.refresh_known_objects()
             log.debug('Refresh is done')
             self.last_refresh = datetime.now()
+
+    async def aclose(self):
+        await self.nest.aclose()

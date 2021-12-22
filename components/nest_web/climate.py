@@ -7,16 +7,14 @@ Nest Web thermostat control
 import logging
 from datetime import datetime
 
-import voluptuous as vol
-
-from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
+from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import ATTR_TARGET_TEMP_HIGH, ATTR_TARGET_TEMP_LOW
 from homeassistant.components.climate.const import SUPPORT_FAN_MODE, FAN_AUTO, FAN_ON
 from homeassistant.components.climate.const import HVAC_MODE_AUTO, HVAC_MODE_COOL, HVAC_MODE_HEAT, HVAC_MODE_OFF
 from homeassistant.components.climate.const import PRESET_AWAY, PRESET_NONE, SUPPORT_PRESET_MODE
 from homeassistant.components.climate.const import SUPPORT_TARGET_TEMPERATURE, SUPPORT_TARGET_TEMPERATURE_RANGE
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_TEMPERATURE, CONF_SCAN_INTERVAL
+from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
@@ -25,33 +23,26 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from nest_client.exceptions import NestException
 from nest_client.entities import Structure, ThermostatDevice, Shared
 
-from .constants import DOMAIN, DATA_NEST, SIGNAL_NEST_UPDATE, ACTION_NEST_TO_HASS, POLL_INTERVAL
+from .constants import DOMAIN, SIGNAL_NEST_UPDATE, ACTION_NEST_TO_HASS
 from .constants import NEST_MODE_HEAT_COOL, MODE_HASS_TO_NEST, MODE_NEST_TO_HASS, TEMP_UNIT_MAP
 from .device import NestWebDevice
 
 __all__ = ['NestThermostat', 'async_setup_entry']
 log = logging.getLogger(__name__)
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Optional(CONF_SCAN_INTERVAL, default=POLL_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=1))
-})
-
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     """Set up the Nest climate device based on a config entry."""
-    log.info(f'Beginning {DOMAIN} async_setup_entry for climate')
     temp_unit = hass.config.units.temperature_unit
-    # hass.data[DATA_NEST] = NestWebDevice(hass, conf, nest)
-    nest_web_dev = hass.data[DATA_NEST]
+    nest_web_dev = hass.data[DOMAIN]  # type: NestWebDevice
     all_devices = [
         NestThermostat(nest_web_dev, structure, device, shared, temp_unit)
         for structure, device, shared in nest_web_dev.struct_thermostat_groups
     ]
     async_add_entities(all_devices, True)
-    log.info(f'Completed {DOMAIN} async_setup_entry for climate')
 
 
-class NestThermostat(ClimateEntity):
+class NestThermostat(ClimateEntity):  # noqa
     def __init__(
         self,
         nest_web_dev: NestWebDevice,
@@ -100,9 +91,6 @@ class NestThermostat(ClimateEntity):
     @property
     def should_poll(self) -> bool:
         return True
-        # log.debug('NestThermostat.should_poll called')
-        # return self.nest_web_dev.needs_refresh()
-        # return any(obj.needs_refresh(POLL_INTERVAL) for obj in (self.structure, self.device, self.shared))
 
     async def async_added_to_hass(self):
         """Register update signal handler."""
@@ -248,10 +236,5 @@ class NestThermostat(ClimateEntity):
     # endregion
 
     async def async_update(self):
-        if not self.nest_web_dev.needs_refresh():
-            log.debug('async_update: refresh is not needed')
-            return
-
-        log.info(f' Refreshing {self.device}')
-        await self.nest_web_dev.refresh()
-        self._update_attrs()
+        if await self.nest_web_dev.maybe_refresh():
+            self._update_attrs()

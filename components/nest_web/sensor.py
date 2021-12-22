@@ -17,7 +17,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from nest_client.entities import Structure, ThermostatDevice, Shared
 
-from .constants import DOMAIN, SIGNAL_NEST_UPDATE, TEMP_UNIT_MAP, DATA_NEST
+from .constants import DOMAIN, SIGNAL_NEST_UPDATE, TEMP_UNIT_MAP
 from .device import NestWebDevice
 
 log = logging.getLogger(__name__)
@@ -25,19 +25,16 @@ log = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
     """Set up a Nest sensor based on a config entry."""
-    log.info(f'Beginning {DOMAIN} async_setup_entry for sensor')
-    nest = hass.data[DATA_NEST]  # type: NestWebDevice
-    nest_web_dev = hass.data[DATA_NEST]
+    nest = hass.data[DOMAIN]  # type: NestWebDevice
+    nest_web_dev = hass.data[DOMAIN]
 
     all_sensors = [
         cls(nest_web_dev, structure, device, shared, var)
         for structure, device, shared in nest.struct_thermostat_groups
         for cls in (NestBasicSensor, NestTempSensor, NestBinarySensor)
-        # for cls in (NestBasicSensor, NestBinarySensor)
         for var in cls._types
     ]
     async_add_entities(all_sensors, True)
-    log.info(f'Completed {DOMAIN} async_setup_entry for sensor')
 
 
 class NestSensorDevice(Entity):
@@ -66,9 +63,6 @@ class NestSensorDevice(Entity):
     @property
     def should_poll(self) -> bool:
         return True
-        # log.debug(f'{self.__class__.__name__}.should_poll called')
-        # return self.nest_web_dev.needs_refresh()
-        # return any(obj.needs_refresh(POLL_INTERVAL) for obj in (self.structure, self.device, self.shared))
 
     @cached_property
     def unique_id(self):
@@ -98,12 +92,8 @@ class NestSensorDevice(Entity):
         return self._unit
 
     async def async_update(self):
-        if not self.nest_web_dev.needs_refresh():
-            log.debug('async_update: refresh is not needed')
-            return
-
-        await self.nest_web_dev.refresh()
-        self._update_attrs()
+        if await self.nest_web_dev.maybe_refresh():
+            self._update_attrs()
 
     async def async_added_to_hass(self):
         """Register update signal handler."""
