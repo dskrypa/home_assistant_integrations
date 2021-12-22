@@ -27,9 +27,11 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddE
     """Set up a Nest sensor based on a config entry."""
     log.info(f'Beginning {DOMAIN} async_setup_entry for sensor')
     nest = hass.data[DATA_NEST]  # type: NestWebDevice
+    nest_web_dev = hass.data[DATA_NEST]
+
     all_sensors = [
-        cls(structure, device, (await device.shared), var)
-        for structure, device in (await nest.thermostats())
+        cls(structure, device, shared, var)
+        for structure, device, shared in nest.struct_thermostat_groups
         # for cls in (NestBasicSensor, NestTempSensor, NestBinarySensor)
         for cls in (NestBasicSensor, NestBinarySensor)
         for var in cls._types
@@ -42,7 +44,10 @@ class NestSensorDevice(Entity):
     _types = {}
     device: ThermostatDevice
 
-    def __init__(self, structure: Structure, device: ThermostatDevice, shared: Shared, variable: str):
+    def __init__(
+        self, nest_web_dev: NestWebDevice, structure: Structure, device: ThermostatDevice, shared: Shared, variable: str
+    ):
+        self.nest_web_dev = nest_web_dev
         self.structure = structure
         self.variable = variable
         self.device = device
@@ -57,7 +62,8 @@ class NestSensorDevice(Entity):
 
     @property
     def should_poll(self) -> bool:
-        return any(obj.needs_refresh(POLL_INTERVAL) for obj in (self.structure, self.device, self.shared))
+        return self.nest_web_dev.needs_refresh()
+        # return any(obj.needs_refresh(POLL_INTERVAL) for obj in (self.structure, self.device, self.shared))
 
     @cached_property
     def unique_id(self):
@@ -113,7 +119,8 @@ class NestBasicSensor(NestSensorDevice, SensorEntity):
         return self._state
 
     async def async_update(self):
-        await self.device.refresh()
+        await self.nest_web_dev.refresh()
+        # await self.device.refresh()
         self._unit = self._units.get(self.variable)
         obj = self.device if self.variable == 'humidity' else self.shared
         self._state = getattr(obj, self.variable)
@@ -132,7 +139,8 @@ class NestTempSensor(NestSensorDevice, SensorEntity):
         return self._state
 
     async def async_update(self):
-        await self.device.refresh()
+        await self.nest_web_dev.refresh()
+        # await self.device.refresh()
         shared = self.shared
         # Using _ versions to get raw celsius values
         if self.variable == 'target_temperature' and shared.target_temperature_type == 'range':
@@ -173,7 +181,8 @@ class NestBinarySensor(NestSensorDevice, BinarySensorEntity):
             return self.shared, attr
 
     async def async_update(self):
-        await self.device.refresh()
+        await self.nest_web_dev.refresh()
+        # await self.device.refresh()
         obj, attr = self._obj_and_attr
         value = getattr(obj, attr)
         self._state = not value if self.variable in self._negate else value

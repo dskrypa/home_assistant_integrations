@@ -1,21 +1,25 @@
 """
-
+:author: Doug Skrypa
 """
 
 import logging
-from typing import Iterator
+from asyncio import Event, Lock
+from datetime import datetime, timedelta
 
 from homeassistant.const import CONF_STRUCTURE
 from homeassistant.core import HomeAssistant
 
 from nest_client.client import NestWebClient
 from nest_client.exceptions import NestException
-from nest_client.entities import Structure, ThermostatDevice
+from nest_client.entities import Structure
 
 from .constants import DOMAIN
 
 __all__ = ['NestWebDevice']
 log = logging.getLogger(__name__)
+
+MIN_REFRESH_INTERVAL = timedelta(seconds=15)
+DEFAULT_REFRESH_INTERVAL = 180
 
 
 class NestWebDevice:
@@ -23,40 +27,53 @@ class NestWebDevice:
         """Init Nest Devices."""
         self.hass = hass
         self.nest = nest
+        self.refresh_interval = timedelta(seconds=int(conf.get('refresh_interval', DEFAULT_REFRESH_INTERVAL)))
+        if self.refresh_interval < MIN_REFRESH_INTERVAL:
+            log.warning(f'Invalid {DOMAIN}.refresh_interval = {self.refresh_interval} - using default')
+            self.refresh_interval = timedelta(seconds=DEFAULT_REFRESH_INTERVAL)
         self.local_structure = conf.get(CONF_STRUCTURE)
+        self.structures = []
+        self.struct_thermostat_groups = []
+        self.refresh_done = Event()
+        self.refresh_done.set()
+        self.refresh_lock = Lock()
+        self.last_refresh = datetime.now()
+        self.last_command = datetime.now()
 
     async def initialize(self):
-        log.info(f'[{DOMAIN}] Beginning NestWebDevice.initialize')
+        log.info('Beginning NestWebDevice.initialize')
         try:
-            # Do not optimize the next statement - it is here to initialize the Nest API connection.
-            structure_names = {s.name for s in (await self.nest.structures)}
+            init_id_obj_map = await self.nest.get_init_objects()
+            structures = [obj for obj in init_id_obj_map.values() if isinstance(obj, Structure)]
+            structure_names = {obj.name for obj in structures}
             if self.local_structure is None:
                 self.local_structure = structure_names
+                self.structures = structures
+            else:
+                for structure in structures:
+                    if structure.name not in self.local_structure:
+                        log.debug(f'Ignoring {structure=} - not in {self.local_structure}')
+                    else:
+                        self.structures.append(structure)
+
+            for structure in self.structures:
+                for device, shared in (await structure.thermostats_and_shared()):
+                    self.struct_thermostat_groups.append((structure, device, shared))
         except NestException as e:
-            log.error(f'Connection error while access Nest web service: {e}')
+            log.error(f'Connection error while attempting to access the Nest web service: {e}')
             return False
+        log.info('Finished NestWebDevice.initialize')
         return True
 
-    async def structures(self) -> Iterator[Structure]:
-        try:
-            for structure in (await self.nest.structures):
-                if structure.name not in self.local_structure:
-                    log.debug(f'Ignoring {structure=} - not in {self.local_structure}')
-                    continue
-                yield structure
-        except NestException as e:
-            log.error(f'Connection error while accessing Nest web service: {e}')
+    def needs_refresh(self) -> bool:
+        now = datetime.now()
+        return (now - self.last_refresh) >= self.refresh_interval or (now - self.last_command) >= MIN_REFRESH_INTERVAL
 
-    async def thermostats(self) -> list[tuple[Structure, ThermostatDevice]]:
-        objs = []
-        try:
-            for structure in (await self.nest.structures):
-                if structure.name not in self.local_structure:
-                    log.debug(f'Ignoring {structure=} - not in {self.local_structure}')
-                    continue
-
-                for device in (await structure.thermostats):
-                    objs.append((structure, device))
-        except NestException as e:
-            log.error(f'Connection error while access Nest web service: {e}')
-        return objs
+    async def refresh(self):
+        with self.refresh_lock:
+            if (datetime.now() - self.last_refresh) < MIN_REFRESH_INTERVAL:
+                return
+            self.refresh_done.clear()
+            await self.nest.refresh_known_objects()
+            self.last_refresh = datetime.now()
+            self.refresh_done.set()
