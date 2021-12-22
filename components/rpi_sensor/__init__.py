@@ -75,6 +75,7 @@ class RaspberryPiDevice:
             return False
 
         self.client = AsyncRequestsClient(net_loc)
+        await self.refresh()
         log.info('Finished RaspberryPiDevice.initialize')
         return True
 
@@ -106,6 +107,7 @@ class RaspberryPiDevice:
                 log.error(f'Error retrieving latest status: {e}')
             else:
                 self.latest_data = resp.json()
+                log.debug(f'Received update: {self.latest_data}')
             log.debug('Refresh is done')
             self.last_refresh = datetime.now()
 

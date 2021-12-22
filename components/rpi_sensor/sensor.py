@@ -41,10 +41,11 @@ class RaspberryPiSensorDevice(SensorEntity):
 
     def _update_attrs(self):
         if (data := self.device.latest_data) is not None:
-            self._state = data[self.variable]
-            # humidity, temp_c = data['humidity'], data['temperature']
-        # self._state = None
-        # self._state = f'{temp:.1f}'
+            value = data[self.variable]
+            if self.variable == 'temperature':
+                self._state = f'{value:.1f}'
+            else:
+                self._state = f'{value * 100:.1f}'
 
     @property
     def name(self):
