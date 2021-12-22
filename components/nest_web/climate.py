@@ -9,7 +9,7 @@ from datetime import datetime
 
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import ATTR_TARGET_TEMP_HIGH, ATTR_TARGET_TEMP_LOW
-from homeassistant.components.climate.const import SUPPORT_FAN_MODE, FAN_AUTO, FAN_ON
+from homeassistant.components.climate.const import SUPPORT_FAN_MODE, FAN_AUTO, FAN_ON, FAN_OFF
 from homeassistant.components.climate.const import HVAC_MODE_AUTO, HVAC_MODE_COOL, HVAC_MODE_HEAT, HVAC_MODE_OFF
 from homeassistant.components.climate.const import PRESET_AWAY, PRESET_NONE, SUPPORT_PRESET_MODE
 from homeassistant.components.climate.const import SUPPORT_TARGET_TEMPERATURE, SUPPORT_TARGET_TEMPERATURE_RANGE
@@ -23,7 +23,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from nest_client.exceptions import NestException
 from nest_client.entities import Structure, ThermostatDevice, Shared
 
-from .constants import DOMAIN, SIGNAL_NEST_UPDATE, ACTION_NEST_TO_HASS
+from .constants import DOMAIN, SIGNAL_NEST_UPDATE, ACTION_NEST_TO_HASS, FAN_MODES_NEST_TO_HASS
 from .constants import NEST_MODE_HEAT_COOL, MODE_HASS_TO_NEST, MODE_NEST_TO_HASS, TEMP_UNIT_MAP
 from .device import NestWebDevice
 
@@ -54,7 +54,7 @@ class NestThermostat(ClimateEntity):  # noqa
         self.structure = structure
         self.device = device
         self.shared = shared
-        self._fan_modes = [FAN_ON, FAN_AUTO]
+        self._fan_modes = [FAN_ON, FAN_AUTO, FAN_OFF]
         self._support_flags = SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
         if shared.can_heat and shared.can_cool:
             self._operation_list = [HVAC_MODE_AUTO, HVAC_MODE_HEAT, HVAC_MODE_COOL, HVAC_MODE_OFF]
@@ -78,13 +78,15 @@ class NestThermostat(ClimateEntity):  # noqa
         self._location = device.where
         self._name = device.name
         self._humidity = device.humidity
-        self._fan = device.fan
+        self._hvac_state = shared.hvac_state
+        # self._fan_running = shared.hvac_fan_state
+        self._fan_mode = device.fan.get('mode')
         self._away = self.structure.away
         self._temperature = shared._current_temperature
         self._mode = mode = shared.target_temperature_type
         self._target_temperature = shared._target_temp_range if mode == 'range' else shared._target_temperature
         self._action = shared.hvac_state
-        self._min_temperature, self._max_temperature = shared.allowed_temp_range
+        # self._min_temperature, self._max_temperature = shared.allowed_temp_range
 
     @property
     def should_poll(self) -> bool:
@@ -130,11 +132,13 @@ class NestThermostat(ClimateEntity):  # noqa
 
     @property
     def min_temp(self):
-        return self._min_temperature
+        return 9
+        # return self._min_temperature
 
     @property
     def max_temp(self):
-        return self._max_temperature
+        return 32
+        # return self._max_temperature
 
     @property
     def current_temperature(self):
@@ -179,7 +183,10 @@ class NestThermostat(ClimateEntity):  # noqa
     @property
     def fan_mode(self):
         if self._has_fan:
-            return FAN_ON if self._fan else FAN_AUTO
+            if self._hvac_state == 'fan running':
+                return FAN_ON
+            else:
+                return FAN_MODES_NEST_TO_HASS.get(self._fan_mode)
         # No Fan available so disable slider
         return None
 
