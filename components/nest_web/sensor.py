@@ -30,7 +30,7 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddE
     nest_web_dev = hass.data[DATA_NEST]
 
     all_sensors = [
-        cls(structure, device, shared, var)
+        cls(nest_web_dev, structure, device, shared, var)
         for structure, device, shared in nest.struct_thermostat_groups
         # for cls in (NestBasicSensor, NestTempSensor, NestBinarySensor)
         for cls in (NestBasicSensor, NestBinarySensor)
@@ -129,8 +129,10 @@ class NestBasicSensor(NestSensorDevice, SensorEntity):
 class NestTempSensor(NestSensorDevice, SensorEntity):
     _types = {'temperature': DEVICE_CLASS_TEMPERATURE, 'target_temperature': DEVICE_CLASS_TEMPERATURE}
 
-    def __init__(self, structure: Structure, device: ThermostatDevice, shared: Shared, variable: str):
-        super().__init__(structure, device, shared, variable)
+    def __init__(
+        self, nest_web_dev: NestWebDevice, structure: Structure, device: ThermostatDevice, shared: Shared, variable: str
+    ):
+        super().__init__(nest_web_dev, structure, device, shared, variable)
         # self._unit = TEMP_UNIT_MAP[self.device.client.config.temp_unit]
         self._unit = TEMP_CELSIUS
 

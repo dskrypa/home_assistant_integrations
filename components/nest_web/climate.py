@@ -43,9 +43,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     temp_unit = hass.config.units.temperature_unit
     # hass.data[DATA_NEST] = NestWebDevice(hass, conf, nest)
     nest_web_dev = hass.data[DATA_NEST]
-    thermostats = await nest_web_dev.thermostats()
     all_devices = [
-        NestThermostat(structure, device, (await device.shared), temp_unit) for structure, device in thermostats
+        NestThermostat(nest_web_dev, structure, device, shared, temp_unit)
+        for structure, device, shared in nest_web_dev.struct_thermostat_groups
     ]
     async_add_entities(all_devices, True)
     log.info(f'Completed {DOMAIN} async_setup_entry for climate')
