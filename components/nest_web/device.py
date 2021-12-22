@@ -70,7 +70,7 @@ class NestWebDevice:
         return (now - self.last_refresh) >= self.refresh_interval or (now - self.last_command) >= MIN_REFRESH_INTERVAL
 
     async def refresh(self):
-        with self.refresh_lock:
+        async with self.refresh_lock:
             if (datetime.now() - self.last_refresh) < MIN_REFRESH_INTERVAL:
                 return
             self.refresh_done.clear()
