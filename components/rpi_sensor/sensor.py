@@ -48,6 +48,10 @@ class RaspberryPiSensorDevice(SensorEntity):
                 self._state = f'{value * 100:.1f}'
 
     @property
+    def native_value(self):
+        return self._state
+
+    @property
     def name(self):
         return self._name
 
