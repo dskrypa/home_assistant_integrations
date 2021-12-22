@@ -104,7 +104,8 @@ class RaspberryPiDevice:
             try:
                 resp = await self.client.get('read')
             except HTTPError as e:
-                log.error(f'Error retrieving latest status: {e}')
+                resp = getattr(e, 'response', None)
+                log.error(f'Error retrieving latest status: {type(e).__name__} - {resp=} {e=!r}')
             else:
                 self.latest_data = resp.json()
                 log.debug(f'Received update: {self.latest_data}')
