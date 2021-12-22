@@ -96,6 +96,7 @@ class NestThermostat(ClimateEntity):
 
     @property
     def should_poll(self) -> bool:
+        log.debug('NestThermostat.should_poll called')
         return self.nest_web_dev.needs_refresh()
         # return any(obj.needs_refresh(POLL_INTERVAL) for obj in (self.structure, self.device, self.shared))
 
@@ -130,7 +131,7 @@ class NestThermostat(ClimateEntity):
     def name(self):
         return self._name
 
-    # region Temperature Properties / Methods
+    # region Temperature Properties
 
     @property
     def temperature_unit(self):
@@ -160,6 +161,45 @@ class NestThermostat(ClimateEntity):
     def target_temperature_high(self):
         return self._target_temperature[1] if self._mode == NEST_MODE_HEAT_COOL else None
 
+    # endregion
+
+    # region HVAC / Preset / Fan Mode Properties
+
+    @property
+    def hvac_modes(self):
+        return self._operation_list
+
+    @property
+    def hvac_mode(self):
+        return MODE_NEST_TO_HASS[self._mode]
+
+    @property
+    def hvac_action(self):
+        return ACTION_NEST_TO_HASS[self._action]
+
+    @property
+    def preset_mode(self):
+        return PRESET_AWAY if self._away else PRESET_NONE
+
+    @property
+    def preset_modes(self) -> list[PRESET_NONE, PRESET_AWAY]:
+        return [PRESET_NONE, PRESET_AWAY]
+
+    @property
+    def fan_mode(self):
+        if self._has_fan:
+            return FAN_ON if self._fan else FAN_AUTO
+        # No Fan available so disable slider
+        return None
+
+    @property
+    def fan_modes(self):
+        return self._fan_modes if self._has_fan else None
+
+    # endregion
+
+    # region Setter Methods
+
     async def async_set_temperature(self, **kwargs):
         try:
             await self._set_temp(
@@ -179,34 +219,9 @@ class NestThermostat(ClimateEntity):
         else:
             log.debug(f'Invalid set_temperature args for mode={self._mode} - {low=} {high=} {temp=}')
 
-    # endregion
-
-    # region Mode Properties / Methods
-
-    @property
-    def hvac_modes(self):
-        return self._operation_list
-
-    @property
-    def hvac_mode(self):
-        return MODE_NEST_TO_HASS[self._mode]
-
-    @property
-    def hvac_action(self):
-        return ACTION_NEST_TO_HASS[self._action]
-
     async def async_set_hvac_mode(self, hvac_mode: str):
-        shared = await self.device.shared
-        await shared.set_mode(MODE_HASS_TO_NEST[hvac_mode])
+        await self.shared.set_mode(MODE_HASS_TO_NEST[hvac_mode])
         self.nest_web_dev.last_command = datetime.now()
-
-    @property
-    def preset_mode(self):
-        return PRESET_AWAY if self._away else PRESET_NONE
-
-    @property
-    def preset_modes(self) -> list[PRESET_NONE, PRESET_AWAY]:
-        return [PRESET_NONE, PRESET_AWAY]
 
     async def async_set_preset_mode(self, preset_mode: str):
         if preset_mode == self.preset_mode:
@@ -217,21 +232,6 @@ class NestThermostat(ClimateEntity):
         if is_away != need_away:
             await self.structure.set_away(need_away)
             self.nest_web_dev.last_command = datetime.now()
-
-    # endregion
-
-    # region Fan Control
-
-    @property
-    def fan_mode(self):
-        if self._has_fan:
-            return FAN_ON if self._fan else FAN_AUTO
-        # No Fan available so disable slider
-        return None
-
-    @property
-    def fan_modes(self):
-        return self._fan_modes if self._has_fan else None
 
     async def async_set_fan_mode(self, fan_mode: str):
         if self._has_fan:

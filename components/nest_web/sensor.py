@@ -32,8 +32,8 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddE
     all_sensors = [
         cls(nest_web_dev, structure, device, shared, var)
         for structure, device, shared in nest.struct_thermostat_groups
-        # for cls in (NestBasicSensor, NestTempSensor, NestBinarySensor)
-        for cls in (NestBasicSensor, NestBinarySensor)
+        for cls in (NestBasicSensor, NestTempSensor, NestBinarySensor)
+        # for cls in (NestBasicSensor, NestBinarySensor)
         for var in cls._types
     ]
     async_add_entities(all_sensors, True)
@@ -62,6 +62,7 @@ class NestSensorDevice(Entity):
 
     @property
     def should_poll(self) -> bool:
+        log.debug(f'{self.__class__.__name__}.should_poll called')
         return self.nest_web_dev.needs_refresh()
         # return any(obj.needs_refresh(POLL_INTERVAL) for obj in (self.structure, self.device, self.shared))
 

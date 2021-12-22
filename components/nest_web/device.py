@@ -3,15 +3,16 @@
 """
 
 import logging
-from asyncio import Event, Lock
+from asyncio import Lock
 from datetime import datetime, timedelta
 
 from homeassistant.const import CONF_STRUCTURE
 from homeassistant.core import HomeAssistant
 
 from nest_client.client import NestWebClient
-from nest_client.exceptions import NestException
 from nest_client.entities import Structure
+from nest_client.exceptions import NestException
+from nest_client.utils import format_duration
 
 from .constants import DOMAIN
 
@@ -34,8 +35,6 @@ class NestWebDevice:
         self.local_structure = conf.get(CONF_STRUCTURE)
         self.structures = []
         self.struct_thermostat_groups = []
-        self.refresh_done = Event()
-        self.refresh_done.set()
         self.refresh_lock = Lock()
         self.last_refresh = datetime.now()
         self.last_command = datetime.now()
@@ -70,10 +69,17 @@ class NestWebDevice:
         return (now - self.last_refresh) >= self.refresh_interval or (now - self.last_command) >= MIN_REFRESH_INTERVAL
 
     async def refresh(self):
+        log.debug('Beginning refresh')
         async with self.refresh_lock:
-            if (datetime.now() - self.last_refresh) < MIN_REFRESH_INTERVAL:
+            log.debug('Acquired refresh lock')
+            delta = datetime.now() - self.last_refresh
+            delta_str = format_duration(delta.total_seconds())
+            log.debug(f'Last refresh was delta={delta_str} ago')
+            if delta < MIN_REFRESH_INTERVAL:
+                log.debug(f'Skipping refresh - last_refresh={self.last_refresh.isoformat(" ")}')
                 return
-            self.refresh_done.clear()
+
+            log.debug('Calling NestWebClient.refresh_known_objects')
             await self.nest.refresh_known_objects()
+            log.debug('Refresh is done')
             self.last_refresh = datetime.now()
-            self.refresh_done.set()
