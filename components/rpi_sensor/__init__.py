@@ -39,7 +39,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not success:
         return False
 
-    for module in ('climate', 'sensor'):
+    for module in ('sensor',):
         hass.async_create_task(hass.config_entries.async_forward_entry_setup(entry, module))
 
     return True
