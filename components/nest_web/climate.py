@@ -14,7 +14,7 @@ from homeassistant.components.climate.const import HVAC_MODE_AUTO, HVAC_MODE_COO
 from homeassistant.components.climate.const import PRESET_AWAY, PRESET_NONE, SUPPORT_PRESET_MODE
 from homeassistant.components.climate.const import SUPPORT_TARGET_TEMPERATURE, SUPPORT_TARGET_TEMPERATURE_RANGE
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_TEMPERATURE
+from homeassistant.const import ATTR_TEMPERATURE, TEMP_CELSIUS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
@@ -33,10 +33,10 @@ log = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     """Set up the Nest climate device based on a config entry."""
-    temp_unit = hass.config.units.temperature_unit
+    # temp_unit = hass.config.units.temperature_unit
     nest_web_dev = hass.data[DOMAIN]  # type: NestWebDevice
     all_devices = [
-        NestThermostat(nest_web_dev, structure, device, shared, temp_unit)
+        NestThermostat(nest_web_dev, structure, device, shared)
         for structure, device, shared in nest_web_dev.struct_thermostat_groups
     ]
     async_add_entities(all_devices, True)
@@ -49,10 +49,8 @@ class NestThermostat(ClimateEntity):  # noqa
         structure: Structure,
         device: ThermostatDevice,
         shared: Shared,
-        temp_unit: str,
     ):
         self.nest_web_dev = nest_web_dev
-        self._unit = temp_unit
         self.structure = structure
         self.device = device
         self.shared = shared
@@ -72,7 +70,7 @@ class NestThermostat(ClimateEntity):  # noqa
         if self._has_fan:
             self._support_flags |= SUPPORT_FAN_MODE
 
-        self._temperature_scale = TEMP_UNIT_MAP[self.device.client.config.temp_unit]
+        # self._temperature_scale = TEMP_UNIT_MAP[self.device.client.config.temp_unit]
         self._update_attrs()
 
     def _update_attrs(self):
@@ -82,9 +80,9 @@ class NestThermostat(ClimateEntity):  # noqa
         self._humidity = device.humidity
         self._fan = device.fan
         self._away = self.structure.away
-        self._temperature = shared.current_temperature
+        self._temperature = shared._current_temperature
         self._mode = mode = shared.target_temperature_type
-        self._target_temperature = shared.target_temp_range if mode == 'range' else shared.target_temperature
+        self._target_temperature = shared._target_temp_range if mode == 'range' else shared._target_temperature
         self._action = shared.hvac_state
         self._min_temperature, self._max_temperature = shared.allowed_temp_range
 
@@ -127,7 +125,8 @@ class NestThermostat(ClimateEntity):  # noqa
 
     @property
     def temperature_unit(self):
-        return self._temperature_scale
+        return TEMP_CELSIUS
+        # return self._temperature_scale
 
     @property
     def min_temp(self):
