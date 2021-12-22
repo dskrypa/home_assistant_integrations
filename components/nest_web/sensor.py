@@ -25,12 +25,10 @@ log = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
     """Set up a Nest sensor based on a config entry."""
-    nest = hass.data[DOMAIN]  # type: NestWebDevice
-    nest_web_dev = hass.data[DOMAIN]
-
+    nest_web_dev = hass.data[DOMAIN]  # type: NestWebDevice
     all_sensors = [
         cls(nest_web_dev, structure, device, shared, var)
-        for structure, device, shared in nest.struct_thermostat_groups
+        for structure, device, shared in nest_web_dev.struct_thermostat_groups
         for cls in (NestBasicSensor, NestTempSensor, NestBinarySensor)
         for var in cls._types
     ]
