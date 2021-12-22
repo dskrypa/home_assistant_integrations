@@ -209,10 +209,10 @@ class NestThermostat(ClimateEntity):  # noqa
 
     async def _set_temp(self, low, high, temp):
         if self._mode == NEST_MODE_HEAT_COOL and low is not None and high is not None:
-            await self.shared.set_temp_range(low, high)
+            await self.shared.set_temp_range(low, high, convert=False)
             self.nest_web_dev.last_command = datetime.now()
         elif temp is not None:
-            await self.shared.set_temp(temp)
+            await self.shared.set_temp(temp, convert=False)
             self.nest_web_dev.last_command = datetime.now()
         else:
             log.debug(f'Invalid set_temperature args for mode={self._mode} - {low=} {high=} {temp=}')
