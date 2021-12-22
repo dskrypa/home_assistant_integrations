@@ -45,7 +45,7 @@ class RaspberryPiSensorDevice(SensorEntity):
             if self.variable == 'temperature':
                 self._state = f'{value:.1f}'
             else:
-                self._state = f'{value * 100:.1f}'
+                self._state = f'{value:.3f}'
 
     @property
     def native_value(self):
