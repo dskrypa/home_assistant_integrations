@@ -17,7 +17,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from nest_client.entities import Structure, ThermostatDevice, Shared
 
-from .constants import DOMAIN, POLL_INTERVAL, SIGNAL_NEST_UPDATE, TEMP_UNIT_MAP, DATA_NEST
+from .constants import DOMAIN, SIGNAL_NEST_UPDATE, TEMP_UNIT_MAP, DATA_NEST
 from .device import NestWebDevice
 
 log = logging.getLogger(__name__)
@@ -56,6 +56,9 @@ class NestSensorDevice(Entity):
         self._state = None
         self._unit = None
 
+    def _update_attrs(self):
+        pass
+
     @property
     def name(self):
         return self._name
@@ -74,20 +77,16 @@ class NestSensorDevice(Entity):
     @property
     def device_info(self) -> DeviceInfo:
         """Return information about the device."""
-        # if self.device.is_thermostat:
-        #     model = 'Thermostat'
-        # elif self.device.is_camera:
-        #     model = 'Camera'
-        # elif self.device.is_smoke_co_alarm:
-        #     model = 'Nest Protect'
-        # else:
-        #     model = None
+        if dev := self.device:
+            model = 'Thermostat' if dev.is_thermostat else 'Camera' if dev.is_camera else 'Nest Protect'
+        else:
+            model = None
         return DeviceInfo(
-            identifiers={(DOMAIN, self.device.serial)},
+            identifiers={(DOMAIN, dev.serial)},
             manufacturer='Nest',
-            model='Thermostat',
-            name=self.device.description,
-            sw_version=self.device.software_version,
+            model=model,
+            name=dev.description,
+            sw_version=dev.software_version,
         )
 
     @cached_property
@@ -99,8 +98,12 @@ class NestSensorDevice(Entity):
         return self._unit
 
     async def async_update(self):
-        """Do not use NestSensorDevice directly."""
-        raise NotImplementedError
+        if not self.nest_web_dev.needs_refresh():
+            log.debug('async_update: refresh is not needed')
+            return
+
+        await self.nest_web_dev.refresh()
+        self._update_attrs()
 
     async def async_added_to_hass(self):
         """Register update signal handler."""
@@ -116,20 +119,14 @@ class NestBasicSensor(NestSensorDevice, SensorEntity):
     _types = {'humidity': DEVICE_CLASS_HUMIDITY, 'hvac_state': None}
     _units = {'humidity': PERCENTAGE}
 
-    @property
-    def native_value(self):
-        return self._state
-
-    async def async_update(self):
-        if not self.nest_web_dev.needs_refresh():
-            log.debug('async_update: refresh is not needed')
-            return
-
-        await self.nest_web_dev.refresh()
-        # await self.device.refresh()
+    def _update_attrs(self):
         self._unit = self._units.get(self.variable)
         obj = self.device if self.variable == 'humidity' else self.shared
         self._state = getattr(obj, self.variable)
+
+    @property
+    def native_value(self):
+        return self._state
 
 
 class NestTempSensor(NestSensorDevice, SensorEntity):
@@ -142,17 +139,7 @@ class NestTempSensor(NestSensorDevice, SensorEntity):
         # self._unit = TEMP_UNIT_MAP[self.device.client.config.temp_unit]
         self._unit = TEMP_CELSIUS
 
-    @property
-    def native_value(self):
-        return self._state
-
-    async def async_update(self):
-        if not self.nest_web_dev.needs_refresh():
-            log.debug('async_update: refresh is not needed')
-            return
-
-        await self.nest_web_dev.refresh()
-        # await self.device.refresh()
+    def _update_attrs(self):
         shared = self.shared
         # Using _ versions to get raw celsius values
         if self.variable == 'target_temperature' and shared.target_temperature_type == 'range':
@@ -162,6 +149,10 @@ class NestTempSensor(NestSensorDevice, SensorEntity):
         else:
             temp = shared._target_temperature if self.variable == 'target_temperature' else shared._current_temperature
             self._state = f'{temp:.1f}'
+
+    @property
+    def native_value(self):
+        return self._state
 
 
 class NestBinarySensor(NestSensorDevice, BinarySensorEntity):
@@ -178,6 +169,11 @@ class NestBinarySensor(NestSensorDevice, BinarySensorEntity):
     _device_var_attr_map = {'has_leaf': 'leaf'}
     _shared_var_attr_map = {'fan': 'hvac_fan_state', 'heat_running': 'hvac_heater_state', 'ac_running': 'hvac_ac_state'}
 
+    def _update_attrs(self):
+        obj, attr = self._obj_and_attr
+        value = getattr(obj, attr)
+        self._state = not value if self.variable in self._negate else value
+
     @property
     def is_on(self):
         """Return true if the binary sensor is on."""
@@ -191,14 +187,3 @@ class NestBinarySensor(NestSensorDevice, BinarySensorEntity):
             return self.device, attr
         elif attr := self._shared_var_attr_map.get(self.variable):
             return self.shared, attr
-
-    async def async_update(self):
-        if not self.nest_web_dev.needs_refresh():
-            log.debug('async_update: refresh is not needed')
-            return
-
-        await self.nest_web_dev.refresh()
-        # await self.device.refresh()
-        obj, attr = self._obj_and_attr
-        value = getattr(obj, attr)
-        self._state = not value if self.variable in self._negate else value

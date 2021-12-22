@@ -82,17 +82,20 @@ class NestThermostat(ClimateEntity):
             self._support_flags |= SUPPORT_FAN_MODE
 
         self._temperature_scale = TEMP_UNIT_MAP[self.device.client.config.temp_unit]
-        self._away = None
-        self._location = None
-        self._name = None
-        self._humidity = None
-        self._target_temperature = None
-        self._temperature = None
-        self._mode = None
-        self._action = None
-        self._fan = None
-        self._min_temperature = None
-        self._max_temperature = None
+        self._update_attrs()
+
+    def _update_attrs(self):
+        device, shared = self.device, self.shared
+        self._location = device.where
+        self._name = device.name
+        self._humidity = device.humidity
+        self._fan = device.fan
+        self._away = self.structure.away
+        self._temperature = shared.current_temperature
+        self._mode = mode = shared.target_temperature_type
+        self._target_temperature = shared.target_temp_range if mode == 'range' else shared.target_temperature
+        self._action = shared.hvac_state
+        self._min_temperature, self._max_temperature = shared.allowed_temp_range
 
     @property
     def should_poll(self) -> bool:
@@ -251,15 +254,4 @@ class NestThermostat(ClimateEntity):
 
         log.info(f' Refreshing {self.device}')
         await self.nest_web_dev.refresh()
-        device, shared = self.device, self.shared
-        # await device.refresh()
-        self._location = device.where
-        self._name = device.name
-        self._humidity = device.humidity
-        self._fan = device.fan
-        self._away = self.structure.away
-        self._temperature = shared.current_temperature
-        self._mode = mode = shared.target_temperature_type
-        self._target_temperature = shared.target_temp_range if mode == 'range' else shared.target_temperature
-        self._action = shared.hvac_state
-        self._min_temperature, self._max_temperature = shared.allowed_temp_range
+        self._update_attrs()
