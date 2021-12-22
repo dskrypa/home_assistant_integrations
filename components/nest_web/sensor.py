@@ -62,8 +62,9 @@ class NestSensorDevice(Entity):
 
     @property
     def should_poll(self) -> bool:
-        log.debug(f'{self.__class__.__name__}.should_poll called')
-        return self.nest_web_dev.needs_refresh()
+        return True
+        # log.debug(f'{self.__class__.__name__}.should_poll called')
+        # return self.nest_web_dev.needs_refresh()
         # return any(obj.needs_refresh(POLL_INTERVAL) for obj in (self.structure, self.device, self.shared))
 
     @cached_property
@@ -120,6 +121,10 @@ class NestBasicSensor(NestSensorDevice, SensorEntity):
         return self._state
 
     async def async_update(self):
+        if not self.nest_web_dev.needs_refresh():
+            log.debug('async_update: refresh is not needed')
+            return
+
         await self.nest_web_dev.refresh()
         # await self.device.refresh()
         self._unit = self._units.get(self.variable)
@@ -142,6 +147,10 @@ class NestTempSensor(NestSensorDevice, SensorEntity):
         return self._state
 
     async def async_update(self):
+        if not self.nest_web_dev.needs_refresh():
+            log.debug('async_update: refresh is not needed')
+            return
+
         await self.nest_web_dev.refresh()
         # await self.device.refresh()
         shared = self.shared
@@ -184,6 +193,10 @@ class NestBinarySensor(NestSensorDevice, BinarySensorEntity):
             return self.shared, attr
 
     async def async_update(self):
+        if not self.nest_web_dev.needs_refresh():
+            log.debug('async_update: refresh is not needed')
+            return
+
         await self.nest_web_dev.refresh()
         # await self.device.refresh()
         obj, attr = self._obj_and_attr

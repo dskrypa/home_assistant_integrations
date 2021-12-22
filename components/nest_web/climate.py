@@ -96,8 +96,9 @@ class NestThermostat(ClimateEntity):
 
     @property
     def should_poll(self) -> bool:
-        log.debug('NestThermostat.should_poll called')
-        return self.nest_web_dev.needs_refresh()
+        return True
+        # log.debug('NestThermostat.should_poll called')
+        # return self.nest_web_dev.needs_refresh()
         # return any(obj.needs_refresh(POLL_INTERVAL) for obj in (self.structure, self.device, self.shared))
 
     async def async_added_to_hass(self):
@@ -244,7 +245,11 @@ class NestThermostat(ClimateEntity):
     # endregion
 
     async def async_update(self):
-        log.info(f'[{DOMAIN}] Refreshing {self.device}')
+        if not self.nest_web_dev.needs_refresh():
+            log.debug('async_update: refresh is not needed')
+            return
+
+        log.info(f' Refreshing {self.device}')
         await self.nest_web_dev.refresh()
         device, shared = self.device, self.shared
         # await device.refresh()
