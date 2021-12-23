@@ -65,31 +65,30 @@ class NestWebDevice:
         return True
 
     def needs_refresh(self) -> bool:
-        now = datetime.now()
-        return (now - self.last_refresh) >= self.refresh_interval or (now - self.last_command) >= MIN_REFRESH_INTERVAL
+        # now = datetime.now()
+        # return (now - self.last_refresh) >= self.refresh_interval or (now - self.last_command) >= MIN_REFRESH_INTERVAL
+        return (datetime.now() - self.last_refresh) >= self.refresh_interval or self.last_command > self.last_refresh
 
     async def maybe_refresh(self) -> bool:
         if not self.needs_refresh():
-            log.debug('Refresh is not currently necessary')
+            # log.debug('Refresh is not currently necessary')
             return False
         else:
             await self.refresh()
             return True
 
     async def refresh(self):
-        log.debug('Beginning refresh')
-        async with self.refresh_lock:
-            log.debug('Acquired refresh lock')
+        async with self.refresh_lock:  # Multiple threads may try at once; if late to acquire lock, return immediately
             delta = datetime.now() - self.last_refresh
-            delta_str = format_duration(delta.total_seconds())
-            log.debug(f'Last refresh was delta={delta_str} ago')
-            if delta < MIN_REFRESH_INTERVAL:
-                log.debug(f'Skipping refresh - last_refresh={self.last_refresh.isoformat(" ")}')
+            too_soon = delta < MIN_REFRESH_INTERVAL
+            if self.last_command < self.last_refresh and too_soon:
+                # log.debug(f'Skipping refresh - last_refresh={self.last_refresh.isoformat(" ")}')
                 return
 
-            log.debug('Calling NestWebClient.refresh_known_objects')
+            cmd_info = f', but last_command={self.last_command.isoformat(" ")}' if too_soon else ''
+            delta_str = format_duration(delta.total_seconds())
+            log.info(f'Refreshing known objects - last refresh was {delta_str} ago{cmd_info}')
             await self.nest.refresh_known_objects()
-            log.debug('Refresh is done')
             self.last_refresh = datetime.now()
 
     async def aclose(self):

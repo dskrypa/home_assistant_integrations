@@ -198,6 +198,10 @@ class NestThermostat(ClimateEntity):  # noqa
 
     # region Setter Methods
 
+    def _register_state_changed(self):
+        self.nest_web_dev.last_command = datetime.now()
+        self.schedule_update_ha_state(True)
+
     async def async_set_temperature(self, **kwargs):
         try:
             await self._set_temp(
@@ -205,21 +209,19 @@ class NestThermostat(ClimateEntity):  # noqa
             )
         except NestException as e:
             log.error(f'An error occurred while setting temperature: {e}')
-            self.schedule_update_ha_state(True)  # restore target temperature
+        self._register_state_changed()
 
     async def _set_temp(self, low, high, temp):
         if self._mode == NEST_MODE_HEAT_COOL and low is not None and high is not None:
             await self.shared.set_temp_range(low, high, convert=False)
-            self.nest_web_dev.last_command = datetime.now()
         elif temp is not None:
             await self.shared.set_temp(temp, convert=False)
-            self.nest_web_dev.last_command = datetime.now()
         else:
             log.debug(f'Invalid set_temperature args for mode={self._mode} - {low=} {high=} {temp=}')
 
     async def async_set_hvac_mode(self, hvac_mode: str):
         await self.shared.set_mode(MODE_HASS_TO_NEST[hvac_mode])
-        self.nest_web_dev.last_command = datetime.now()
+        self._register_state_changed()
 
     async def async_set_preset_mode(self, preset_mode: str):
         if preset_mode == self.preset_mode:
@@ -229,7 +231,7 @@ class NestThermostat(ClimateEntity):  # noqa
         is_away = self._away
         if is_away != need_away:
             await self.structure.set_away(need_away)
-            self.nest_web_dev.last_command = datetime.now()
+            self._register_state_changed()
 
     async def async_set_fan_mode(self, fan_mode: str):
         if self._has_fan:
@@ -237,7 +239,7 @@ class NestThermostat(ClimateEntity):  # noqa
                 await self.device.start_fan()  # TODO: Set/Configure duration
             else:
                 await self.device.stop_fan()
-            self.nest_web_dev.last_command = datetime.now()
+            self._register_state_changed()
 
     # endregion
 
