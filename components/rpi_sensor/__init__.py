@@ -8,7 +8,7 @@ import logging
 from asyncio import Lock
 from datetime import datetime, timedelta
 
-from httpx import HTTPError
+from httpx import HTTPError, ReadTimeout
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -67,7 +67,6 @@ class RaspberryPiDevice:
         self.latest_data = None
 
     async def initialize(self):
-        log.info('Beginning RaspberryPiDevice.initialize')
         try:
             net_loc = self.conf['net_loc']
         except KeyError:
@@ -76,7 +75,6 @@ class RaspberryPiDevice:
 
         self.client = AsyncRequestsClient(net_loc)
         await self.refresh()
-        log.info('Finished RaspberryPiDevice.initialize')
         return True
 
     def needs_refresh(self) -> bool:
@@ -84,32 +82,31 @@ class RaspberryPiDevice:
 
     async def maybe_refresh(self) -> bool:
         if not self.needs_refresh():
-            log.debug('Refresh is not currently necessary')
+            # log.debug('Refresh is not currently necessary')
             return False
         else:
             await self.refresh()
             return True
 
     async def refresh(self):
-        log.debug('Beginning refresh')
         async with self.refresh_lock:
-            log.debug('Acquired refresh lock')
-            delta = datetime.now() - self.last_refresh
-            delta_str = format_duration(delta.total_seconds())
-            log.debug(f'Last refresh was delta={delta_str} ago')
-            if delta < MIN_REFRESH_INTERVAL:
-                log.debug(f'Skipping refresh - last_refresh={self.last_refresh.isoformat(" ")}')
+            if (delta := datetime.now() - self.last_refresh) < MIN_REFRESH_INTERVAL:
+                # log.debug(f'Skipping refresh - last_refresh={self.last_refresh.isoformat(" ")}')
                 return
 
+            delta_str = format_duration(delta.total_seconds())
+            log.info(f'Beginning refresh - last refresh was {delta_str} ago')
             try:
                 resp = await self.client.get('read')
+            except ReadTimeout:
+                log.warning('Read sensor request timed out')
             except HTTPError as e:
                 resp = getattr(e, 'response', None)
                 log.error(f'Error retrieving latest status: {type(e).__name__} - {resp=} {e=!r}')
             else:
                 self.latest_data = resp.json()
-                log.debug(f'Received update: {self.latest_data}')
-            log.debug('Refresh is done')
+                # log.debug(f'Received update: {self.latest_data}')
+            # log.debug('Refresh is done')
             self.last_refresh = datetime.now()
 
     async def aclose(self):
