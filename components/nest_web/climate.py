@@ -199,7 +199,7 @@ class NestThermostat(ClimateEntity):  # noqa
 
     # region Setter Methods
 
-    def _register_state_changed(self):
+    async def _register_state_changed(self):
         self.nest_web_dev.last_command = datetime.now()
         await sleep(5)
         self.schedule_update_ha_state(True)
@@ -213,7 +213,7 @@ class NestThermostat(ClimateEntity):  # noqa
             )
         except NestException as e:
             log.error(f'An error occurred while setting temperature: {e}')
-        self._register_state_changed()
+        await self._register_state_changed()
 
     async def _set_temp(self, low, high, temp):
         if self._mode == NEST_MODE_HEAT_COOL and low is not None and high is not None:
@@ -225,7 +225,7 @@ class NestThermostat(ClimateEntity):  # noqa
 
     async def async_set_hvac_mode(self, hvac_mode: str):
         await self.shared.set_mode(MODE_HASS_TO_NEST[hvac_mode])
-        self._register_state_changed()
+        await self._register_state_changed()
 
     async def async_set_preset_mode(self, preset_mode: str):
         if preset_mode == self.preset_mode:
@@ -235,7 +235,7 @@ class NestThermostat(ClimateEntity):  # noqa
         is_away = self._away
         if is_away != need_away:
             await self.structure.set_away(need_away)
-            self._register_state_changed()
+            await self._register_state_changed()
 
     async def async_set_fan_mode(self, fan_mode: str):
         if self._has_fan:
@@ -243,7 +243,7 @@ class NestThermostat(ClimateEntity):  # noqa
                 await self.device.start_fan()  # TODO: Set/Configure duration
             else:
                 await self.device.stop_fan()
-            self._register_state_changed()
+            await self._register_state_changed()
 
     # endregion
 
