@@ -5,6 +5,7 @@ Nest Web thermostat control
 """
 
 import logging
+from asyncio import sleep
 from datetime import datetime
 
 from homeassistant.components.climate import ClimateEntity
@@ -200,6 +201,7 @@ class NestThermostat(ClimateEntity):  # noqa
 
     def _register_state_changed(self):
         self.nest_web_dev.last_command = datetime.now()
+        sleep(5)
         self.schedule_update_ha_state(True)
 
     async def async_set_temperature(self, **kwargs):

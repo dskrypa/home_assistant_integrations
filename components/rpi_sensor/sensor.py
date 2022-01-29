@@ -41,8 +41,13 @@ class RaspberryPiSensorDevice(SensorEntity):
 
     def _update_attrs(self):
         if (data := self.device.latest_data) is not None:
-            value = data[self.variable]
-            self._state = f'{value:.1f}'
+            var = self.variable
+            value = data[var]
+            if (var == 'temperature' and not -10 < value < 45) or (var == 'humidity' and not 5 <= value <= 95):
+                log.warning(f'Ignoring invalid {var} {value=}')
+                self._state = None
+            else:
+                self._state = f'{value:.1f}'
 
     @property
     def native_value(self):
