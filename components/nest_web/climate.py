@@ -203,7 +203,7 @@ class NestThermostat(ClimateEntity):  # noqa
         self.nest_web_dev.last_command = datetime.now()
         await sleep(5)
         self.schedule_update_ha_state(True)
-        await sleep(self.nest_web_dev.refresh_interval + 0.5)
+        await sleep(self.nest_web_dev.refresh_interval.total_seconds() + 0.5)
         self.schedule_update_ha_state(True)
 
     async def async_set_temperature(self, **kwargs):
