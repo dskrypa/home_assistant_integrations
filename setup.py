@@ -5,9 +5,7 @@ from pathlib import Path
 from setuptools import setup
 
 project_root = Path(__file__).resolve().parent
-
-with project_root.joinpath('readme.rst').open('r', encoding='utf-8') as f:
-    long_description = f.read()
+long_description = project_root.joinpath('readme.rst').read_text('utf-8')
 
 about = {}
 with project_root.joinpath('__version__.py').open('r', encoding='utf-8') as f:
@@ -23,7 +21,7 @@ optional_dependencies = {
 optional_dependencies['ALL'] = sorted(set(chain.from_iterable(optional_dependencies.values())))
 optional_dependencies['homeassistant'] = ['homeassistant']  # This should be installed with --no-deps
 
-requirements = ['nest-client@ git+git://github.com/dskrypa/nest-client']
+requirements = ['nest-client@ git+https://github.com/dskrypa/nest-client']
 
 
 setup(
