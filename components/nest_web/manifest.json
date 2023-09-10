@@ -4,8 +4,8 @@
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/dskrypa/home_assistant_integrations",
-  "requirements": ["git+git://github.com/dskrypa/nest-client#nest-client==2021.12.22-7"],
+  "requirements": ["git+https://github.com/dskrypa/nest-client"],
   "codeowners": [],
   "iot_class": "cloud_polling",
-  "version": "2021.12.22-2"
+  "version": "2023.09.10-1"
 }
